@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -39,6 +40,8 @@ typedef struct client_structure
     client_structure * prev;
     client_structure * next;
     bool active;
+    std::string message_buffer;
+    pthread_mutex_t message_mutex = PTHREAD_MUTEX_INITIALIZER;
 } client_structure;
 
 
@@ -47,7 +50,7 @@ int mc_connection;
 pthread_t mc_server_menu_thread;
 pthread_t mc_listener_thread;
 client_structure * mc_user_list;
-pthread_mutex_t mc_user_list_mutex=PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mc_user_list_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 //METHOD
@@ -58,7 +61,6 @@ void * mc_server_menu(void * connection);
 
 int mc_create_client(socket_address * address, int handler);
 int mc_remove_client(client_structure * current_client);
+std::string mc_list_clients(bool show_unactive);
 void * mc_message_handler(void * current_client);
-
-//TEST
-void printOnlineUsers();
+void mc_spread_out_message(client_structure * current_client, std::string message);

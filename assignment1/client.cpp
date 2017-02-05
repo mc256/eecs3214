@@ -21,7 +21,6 @@ int main(int argc, char ** argv) {
 
 
     //Create socket
-    int mc_connection;
     if ( (mc_connection = socket(AF_INET, SOCK_STREAM, 0)) < 0){
         cout << "socket create failed" << endl;
         return 1;
@@ -38,31 +37,72 @@ int main(int argc, char ** argv) {
 
 
     //Handle Request
-    while (true){
-        int action;
-        string message;
-
-
-        cout << "action:(0-exit 1-send 2-recv)" << flush;
-        cin >> action;
-        if (action == 0){
-            cout << "bye!" << endl;
-            break;
-        }else if (action == 1){
-            cout << "send:" << flush;
-            cin >> message;
-            mc_socket_write(mc_connection, message);
-        }else if (action == 2){
-            message = mc_socket_read(mc_connection);
-            cout << "recv:["<< message.length() <<"]" << message << endl;
-        }
+    if (pthread_mutex_lock(&mc_holding_mutex)){    // Blocking until the greeting from the server
+        cout << ERROR_THREAD << endl;
+        return 0;
     }
 
-    //Finish Request
-    close(mc_connection);
-    
-    
+    //Menu
+    pthread_create(&mc_client_thread, NULL, mc_client_response, (void *) &mc_connection);
+    pthread_create(&mc_heartbeat_thread, NULL, mc_heartbeat_response, (void *) &mc_connection);
+
+
+    pthread_join(mc_client_thread, NULL);    
     
     return 0;
 }
 
+void * mc_client_response(void * connection){
+
+    while (true){
+        string msg;
+        getline(cin,msg);
+        if (msg == "CLOSE"){
+            break;
+        }else{
+            if (pthread_mutex_lock(&mc_holding_mutex)) {
+                cout << ERROR_THREAD << endl;
+                break;
+            }
+            mc_socket_write(mc_connection, msg);
+        }
+
+    }
+    close(mc_connection);
+    cout << ERROR_LOSTCNT << endl;
+}
+
+
+void * mc_heartbeat_response(void * connection){
+
+    cout << ">" << flush;
+    while (true){
+        string msg = mc_socket_read(mc_connection);
+
+        //UNSET HOLDING        
+        if (pthread_mutex_unlock(&mc_holding_mutex)){    // Open a window so the message can be sent
+            cout << ERROR_THREAD << endl;
+            break;
+        }
+
+        //RESPOND HEART BEATS
+        if (msg.length() == 0){
+            break;
+        }else if (msg == "RUOK"){
+            usleep(INTERVAL);
+        }else{
+            cout << msg << ">" << flush;
+        }
+
+
+        //SET HOLDING        
+        if (pthread_mutex_trylock(&mc_holding_mutex) == 0) {
+            mc_socket_write(mc_connection, "IMOK");
+        }
+        
+    }
+    close(mc_connection);
+    cout << ERROR_LOSTCNT << endl;
+    //TODO
+    //Ask user if you want to reconnect then a loop
+}
