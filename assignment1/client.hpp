@@ -7,6 +7,7 @@
 //
 
 #include <iostream>
+#include <cstdlib>
 #include <string>
 #include <sstream>
 #include <unistd.h>
@@ -28,7 +29,7 @@
 #define ERROR_ACCEPT "cannot establish connection"
 #define ERROR_SERVER "cannot handle connection"
 #define ERROR_THREAD "unable to handle a thread lock"
-#define ERROR_LOSTCNT "you lost the connection"
+#define ERROR_LOSTCNT "connection lost"
 
 //STRUCTURE
 typedef struct sockaddr_in socket_address;                      // Easy for construct
