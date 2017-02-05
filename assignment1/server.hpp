@@ -15,7 +15,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
-#include "mc_util.h"
+#include "mc_util.hpp"
 
 //CONSTANT
 #define BIND_PORT 23111

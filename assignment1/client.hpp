@@ -13,7 +13,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include "mc_util.h"
+#include "mc_util.hpp"
 
 #define PORT_NUMBER 23111
 
