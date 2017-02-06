@@ -12,7 +12,7 @@ using namespace std;
 
 int main(int argc, char ** argv) {
     cout << "=============================================================================" << endl;
-    cout << "                         EECS3214 Assignment 1" << endl;
+    cout << "                         EECS3214 Assignment 1 Client" << endl;
     cout << "-----------------------------------------------------------------------------" << endl;
     cout << "By Jun Lin Chen" << endl;
     cout << "" << endl;
@@ -57,7 +57,7 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    cout << "CONNECTED !!!" << endl;
+    cout << "CONNECTED!!!" << endl;
     
     //Menu
     pthread_create(&mc_client_thread, NULL, mc_client_response, (void *) &mc_connection);

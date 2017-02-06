@@ -11,6 +11,17 @@
 using namespace std;
 
 int main(int argc, char ** argv) {
+    cout << "=============================================================================" << endl;
+    cout << "                         EECS3214 Assignment 1 Server" << endl;
+    cout << "-----------------------------------------------------------------------------" << endl;
+    cout << "By Jun Lin Chen" << endl;
+    cout << "" << endl;
+    cout << "Command:" << endl;
+    cout << "    LIST    - display yourself on the LIST" << endl;
+    cout << "    CLOSE   - close this program" << endl;
+    cout << "    message - anything you want to send" << endl;
+    cout << "=============================================================================" << endl;
+
     //Configure the address
     socket_address * mc_address = new socket_address;
     mc_address->sin_family = AF_INET;                            // IPv4 is OK
@@ -37,12 +48,15 @@ int main(int argc, char ** argv) {
     }
 
     //User List
-    pthread_mutex_init(&mc_user_list_mutex,NULL);
+    pthread_mutex_init(&mc_user_list_mutex, NULL);
     mc_user_list = new client_structure;
+    mc_user_list->address = NULL;
     mc_user_list->next = mc_user_list->prev = NULL;
+    
 
 
     //Server-end Menu
+    cout << "OK!!! Server is ready." << endl;
     pthread_create(&mc_server_menu_thread, NULL, mc_server_menu, (void *) &mc_connection);
     pthread_create(&mc_listener_thread, NULL, mc_listener, (void *) &mc_connection);
 
@@ -72,18 +86,38 @@ void * mc_listener(void * connection){
 }
 
 void * mc_server_menu(void * connection){
-    //TODO!!!!!!!
     while (true){
-        int action;
-        cin >> action;
-        if (action == 1){
-            cout << mc_list_clients(true);
-        }else if (action == 0){
-            //need to go through all the user and close
-            close(*(int *) connection);
+        string msg;
+        getline(cin, msg);
+        if (msg == "LIST"){
+            cout << mc_list_clients(true) << endl;
+        }else if (msg == "CLOSE"){
+            mc_spread_out_message(mc_user_list, "System Announcement >> System is shutting down.");
+            cout << "Sending notifications to clients..." << endl;
+            sleep(1);
             break;
+        }else{
+            mc_spread_out_message(mc_user_list, "System Announcement >> " + msg);
         }
     }
+
+    //Remove All the connected Client
+    if ( pthread_mutex_lock(&mc_user_list_mutex) ){
+        cout << ERROR_THREAD << endl;
+    }
+
+    client_structure * pointer = mc_user_list;
+    while (pointer->next != NULL){
+        pointer = pointer->next;
+        close(pointer->handler);
+    }
+
+    if ( pthread_mutex_unlock(&mc_user_list_mutex) ){
+        cout << ERROR_THREAD << endl;
+    }
+
+    close(*(int *) connection);
+    cout << "Bye!" << endl;
 }
 
 
@@ -157,6 +191,7 @@ string mc_list_clients(bool show_unactive){
             buffer << endl;
         }
     }
+    buffer << i << " user(s) online." << endl;
     return buffer.str();
 }
 
@@ -168,14 +203,14 @@ void * mc_message_handler(void * current_client){
         if (mc_client->message_buffer.length() == 0){
             mc_socket_write(mc_client->handler, "RUOK");
         }else{
-            if (pthread_mutex_lock(&(mc_client->message_mutex))){   // In case writing to the message buffer at the same time
+            if (pthread_mutex_lock(&(mc_client->message_mutex))){           // In case writing to the message buffer at the same time
                 cout << ERROR_THREAD << endl;
                 break;
             }
             
             mc_socket_write(mc_client->handler, mc_client->message_buffer);
             mc_client->message_buffer = "";
-            cout << "sent message to " << mc_socket_address_to_string(mc_client->address) << endl;
+            cout << "message sent: " << mc_socket_address_to_string(mc_client->address) << endl;
 
             if (pthread_mutex_unlock(&(mc_client->message_mutex))){
                 cout << ERROR_THREAD << endl;
@@ -185,13 +220,13 @@ void * mc_message_handler(void * current_client){
             
 
         string msg = mc_socket_read(mc_client->handler);
-        if (msg.length() == 0){                                     // Receive 0 length string should close the connection
+        if (msg.length() == 0){                                             // Receive 0 length string should close the connection
             break;
-        }else if (msg == "IMOK"){                                   // You are good? then ask you again!
+        }else if (msg == "IMOK"){                                           // You are good? then ask you again!
             continue;
         }else if (msg == "JOIN"){
             mc_client->active = true;
-            if (pthread_mutex_lock(&(mc_client->message_mutex))){   // In case writing to the message buffer at the same time
+            if (pthread_mutex_lock(&(mc_client->message_mutex))){           // In case writing to the message buffer at the same time
                 cout << ERROR_THREAD << endl;
                 break;
             }
@@ -204,7 +239,7 @@ void * mc_message_handler(void * current_client){
             }
         }else if (msg == "LEAVE"){
             mc_client->active = false;
-            if (pthread_mutex_lock(&(mc_client->message_mutex))){   // In case writing to the message buffer at the same time
+            if (pthread_mutex_lock(&(mc_client->message_mutex))){           // In case writing to the message buffer at the same time
                 cout << ERROR_THREAD << endl;
                 break;
             }
@@ -216,7 +251,7 @@ void * mc_message_handler(void * current_client){
                 break;
             }
         }else if (msg == "LIST"){
-            if (pthread_mutex_lock(&(mc_client->message_mutex))){   // In case writing to the message buffer at the same time
+            if (pthread_mutex_lock(&(mc_client->message_mutex))){           // In case writing to the message buffer at the same time
                 cout << ERROR_THREAD << endl;
                 break;
             }
@@ -230,7 +265,7 @@ void * mc_message_handler(void * current_client){
         }else{
             mc_spread_out_message(mc_client, msg);
 
-            if (pthread_mutex_lock(&(mc_client->message_mutex))){   // In case writing to the message buffer at the same time
+            if (pthread_mutex_lock(&(mc_client->message_mutex))){           // In case writing to the message buffer at the same time
                 cout << ERROR_THREAD << endl;
                 break;
             }
@@ -251,7 +286,11 @@ void * mc_message_handler(void * current_client){
 void mc_spread_out_message(client_structure * current_client, string message){
     ostringstream buffer;
     //Lock the user list
-    buffer << mc_socket_address_to_string(current_client->address) << " >> " << message << endl;
+    if (current_client->address != NULL) {                                  // The first element in the user list has a NULL address
+        buffer << mc_socket_address_to_string(current_client->address) << " >> ";
+    }
+    buffer << message << endl;
+
     if ( pthread_mutex_lock(&mc_user_list_mutex) ){
         cout << ERROR_THREAD << endl;
     }
@@ -260,9 +299,9 @@ void mc_spread_out_message(client_structure * current_client, string message){
 
     // go forward
     pointer = current_client;
-    while (pointer->prev != NULL){
+    while ((pointer->prev != NULL) && (pointer->prev->address != NULL)){    // The first element in the user list has a NULL address
         pointer = pointer->prev;
-        if (pthread_mutex_lock(&(pointer->message_mutex))){   // In case writing to the message buffer at the same time
+        if (pthread_mutex_lock(&(pointer->message_mutex))){                 // In case writing to the message buffer at the same time
             cout << ERROR_THREAD << endl;
             break;
         }
@@ -280,7 +319,7 @@ void mc_spread_out_message(client_structure * current_client, string message){
     pointer = current_client;
     while (pointer->next != NULL){
         pointer = pointer->next;
-        if (pthread_mutex_lock(&(pointer->message_mutex))){   // In case writing to the message buffer at the same time
+        if (pthread_mutex_lock(&(pointer->message_mutex))){                 // In case writing to the message buffer at the same time
             cout << ERROR_THREAD << endl;
             break;
         }
