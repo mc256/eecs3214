@@ -39,7 +39,7 @@ typedef struct sockaddr socket_address_system;                  // For system us
 int mc_connection;
 pthread_t mc_client_thread;
 pthread_t mc_heartbeat_thread;
-pthread_mutex_t mc_holding_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mc_holding_mutex;
 
 
 //METHOD

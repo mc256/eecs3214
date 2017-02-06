@@ -51,6 +51,7 @@ int main(int argc, char ** argv) {
 
 
     //Handle Request
+    pthread_mutex_init(&mc_holding_mutex,NULL);
     if (pthread_mutex_lock(&mc_holding_mutex)){    // Blocking until the greeting from the server
         cout << ERROR_THREAD << endl;
         return 1;

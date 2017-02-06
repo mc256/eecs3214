@@ -37,6 +37,7 @@ int main(int argc, char ** argv) {
     }
 
     //User List
+    pthread_mutex_init(&mc_user_list_mutex,NULL);
     mc_user_list = new client_structure;
     mc_user_list->next = mc_user_list->prev = NULL;
 
@@ -93,6 +94,7 @@ int mc_create_client(socket_address * address, int handler){
     mc_client->handler = handler;
     mc_client->active = false;
     mc_client->message_buffer = "";
+    pthread_mutex_init(&(mc_client->message_mutex),NULL);
 
     //Add user to linked list
     if ( pthread_mutex_lock(&mc_user_list_mutex) ){

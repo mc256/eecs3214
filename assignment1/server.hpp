@@ -41,7 +41,7 @@ typedef struct client_structure
     client_structure * next;
     bool active;
     std::string message_buffer;
-    pthread_mutex_t message_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t message_mutex;
 } client_structure;
 
 
@@ -50,7 +50,7 @@ int mc_connection;
 pthread_t mc_server_menu_thread;
 pthread_t mc_listener_thread;
 client_structure * mc_user_list;
-pthread_mutex_t mc_user_list_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mc_user_list_mutex;
 
 
 //METHOD
