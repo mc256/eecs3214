@@ -7,6 +7,7 @@
 //
 
 #include <iostream>
+#include <cstdlib>
 #include <string>
 #include <sstream>
 #include <unistd.h>
@@ -21,13 +22,13 @@
 //CONSTANT
 #define BIND_PORT 23111
 #define BIND_ADDR "0.0.0.0"
+#define SHUTDOWN_TIMEOUT 1
 
 #define ERROR_SOCKET "socket error"
 #define ERROR_BIND "cannot bind to address"
 #define ERROR_LISTEN "listen error"
 #define ERROR_ACCEPT "cannot establish connection"
 #define ERROR_SERVER "cannot handle connection"
-#define ERROR_THREAD "unable to handle a thread lock"
 
 //STRUCTURE
 typedef struct sockaddr_in socket_address;                      // Easy for construct
@@ -46,7 +47,6 @@ typedef struct client_structure
 
 
 //VARIABLE
-int mc_connection;
 pthread_t mc_server_menu_thread;
 pthread_t mc_listener_thread;
 client_structure * mc_user_list;

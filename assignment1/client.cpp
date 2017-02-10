@@ -30,6 +30,7 @@ int main(int argc, char ** argv) {
 
     //Configure the address
     socket_address * mc_address = new socket_address;
+    mc_check_null(&mc_address);
     mc_address->sin_family = AF_INET;
     mc_address->sin_addr.s_addr = inet_addr(bind_address.c_str());
     mc_address->sin_port = htons(PORT_NUMBER);
@@ -37,6 +38,7 @@ int main(int argc, char ** argv) {
 
 
     //Create socket
+    int mc_connection;
     if ( (mc_connection = socket(AF_INET, SOCK_STREAM, 0)) < 0){
         cout << ERROR_SOCKET << endl;
         return 1;
@@ -52,17 +54,13 @@ int main(int argc, char ** argv) {
 
     //Handle Request
     pthread_mutex_init(&mc_holding_mutex,NULL);
-    if (pthread_mutex_lock(&mc_holding_mutex)){    // Blocking until the greeting from the server
-        cout << ERROR_THREAD << endl;
-        return 1;
-    }
+    mc_mutex_lock(&mc_holding_mutex);
 
     cout << "CONNECTED!!!" << endl;
     
     //Menu
     pthread_create(&mc_client_thread, NULL, mc_client_response, (void *) &mc_connection);
     pthread_create(&mc_heartbeat_thread, NULL, mc_heartbeat_response, (void *) &mc_connection);
-
 
     pthread_join(mc_client_thread, NULL);        
     return 0;
@@ -73,18 +71,19 @@ void * mc_client_response(void * connection){
     while (true){
         string msg;
         getline(cin,msg);
+        mc_mutex_lock(&mc_holding_mutex);
         if (msg == "CLOSE"){
             break;
+        }else if ( msg == "JOIN" || msg == "LEAVE" || msg == "LIST" ){
+            mc_socket_write(*(int *)connection, msg);
         }else{
-            if (pthread_mutex_lock(&mc_holding_mutex)) {
-                cout << ERROR_THREAD << endl;
-                break;
-            }
-            mc_socket_write(mc_connection, msg);
-        }
-
+            mc_socket_write(*(int *)connection, "MSG" + msg);
+        }            
+        
     }
-    close(mc_connection);
+    close(*(int *)connection);
+    cout << "Bye!" << endl;
+    exit(0);
 }
 
 
@@ -92,14 +91,9 @@ void * mc_heartbeat_response(void * connection){
 
     cout << ">" << flush;
     while (true){
-        string msg = mc_socket_read(mc_connection);
+        string msg = mc_socket_read(*(int *)connection);
 
-        //UNSET HOLDING        
-        if (pthread_mutex_unlock(&mc_holding_mutex)){    // Open a window so the message can be sent
-            cout << ERROR_THREAD << endl;
-            break;
-        }
-
+        mc_mutex_unlock(&mc_holding_mutex);
         //RESPOND HEART BEATS
         if (msg.length() == 0){
             break;
@@ -109,14 +103,13 @@ void * mc_heartbeat_response(void * connection){
             cout << msg << ">" << flush;
         }
 
-
         //SET HOLDING        
-        if (pthread_mutex_trylock(&mc_holding_mutex) == 0) {
-            mc_socket_write(mc_connection, "IMOK");
+        if (mc_mutex_trylock(&mc_holding_mutex) == 0) {
+            mc_socket_write(*(int *)connection, "IMOK");
         }
         
     }
-    close(mc_connection);
+    close(*(int *)connection);
     cout << ERROR_LOSTCNT << endl;
     exit(0);
 }

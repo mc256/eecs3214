@@ -28,7 +28,6 @@
 #define ERROR_LISTEN "listen error"
 #define ERROR_ACCEPT "cannot establish connection"
 #define ERROR_SERVER "cannot handle connection"
-#define ERROR_THREAD "unable to handle a thread lock"
 #define ERROR_LOSTCNT "connection lost"
 
 //STRUCTURE

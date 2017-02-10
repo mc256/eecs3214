@@ -43,3 +43,31 @@ string mc_socket_address_to_string(socket_address * address){
     return buffer.str();
 }
 
+void mc_mutex_lock(pthread_mutex_t *mutex){
+    if (pthread_mutex_lock(mutex)){
+        cout << ERROR_THREAD << endl;
+        exit(1);
+    }
+}
+
+void mc_mutex_unlock(pthread_mutex_t *mutex){
+    if (pthread_mutex_unlock(mutex)){
+        cout << ERROR_THREAD << endl;
+        exit(1);
+    }
+}
+
+// true if you can lock it
+bool mc_mutex_trylock(pthread_mutex_t *mutex){
+    if (pthread_mutex_trylock(mutex)){
+        return true;
+    }
+    return false;
+}
+
+void mc_check_null(void * object){
+    if (object == NULL){
+        cout << ERROR_MEMORY << endl;
+        exit(1);
+    }
+}
