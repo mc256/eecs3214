@@ -11,16 +11,15 @@
 using namespace std;
 
 int main(int argc, char ** argv) {
-    cout << "=============================================================================" << endl;
-    cout << "                         EECS3214 Assignment 1 Server" << endl;
-    cout << "-----------------------------------------------------------------------------" << endl;
-    cout << "By Jun Lin Chen" << endl;
-    cout << "" << endl;
-    cout << "Command:" << endl;
+    //Print the menu
+    cout << "===============================================" << endl;
+    cout << "       EECS3214 Assignment 1 Server" << endl;
+    cout << "-----------------------------------------------" << endl;
+    cout << " Command:" << endl;
     cout << "    LIST    - display yourself on the LIST" << endl;
     cout << "    CLOSE   - close this program" << endl;
     cout << "    message - anything you want to send" << endl;
-    cout << "=============================================================================" << endl;
+    cout << "===============================================" << endl;
 
     //Configure the address
     socket_address * mc_address = new socket_address;
@@ -57,7 +56,6 @@ int main(int argc, char ** argv) {
     mc_user_list->next = mc_user_list->prev = NULL;
     
 
-
     //Server-end Menu
     cout << "OK!!! Server is ready." << endl;
     pthread_create(&mc_server_menu_thread, NULL, mc_server_menu, (void *) &mc_connection);
@@ -93,6 +91,9 @@ void * mc_server_menu(void * connection){
     while (true){
         string msg;
         getline(cin, msg);
+        if (msg.length() == 0){
+            continue;
+        }
         if (msg == "LIST"){
             cout << mc_list_clients(true) << endl;
         }else if (msg == "CLOSE"){
