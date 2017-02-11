@@ -10,9 +10,14 @@
 
 using namespace std;
 
-//Main method
+/*
+    Main method.
+
+    @param argc number of the arguments.
+    @param argv the arguments.
+*/
 int main(int argc, char ** argv) {
-    //Get the Server-end IP address
+    // Get the Server-end IP address
     cout << "===============================================" << endl;
     cout << "       EECS3214 Assignment 1 Client" << endl;
     cout << "-----------------------------------------------" << endl;
@@ -38,7 +43,7 @@ int main(int argc, char ** argv) {
         bind_address = inet_addr(bind_address_string.c_str());
     }
 
-    //Configure the address
+    // Configure the address
     socket_address * mc_address = new socket_address;
     mc_check_null(&mc_address);
     mc_address->sin_family = AF_INET;
@@ -47,7 +52,7 @@ int main(int argc, char ** argv) {
     socklen_t mc_address_size = sizeof(* mc_address);
 
 
-    //Create socket
+    // Create socket
     int mc_connection;
     if ( (mc_connection = socket(AF_INET, SOCK_STREAM, 0)) < 0){
         cout << ERROR_SOCKET << endl;
@@ -55,37 +60,43 @@ int main(int argc, char ** argv) {
     }
 
 
-    //Connect
+    // Connect
     if ( connect(mc_connection, (socket_address_system *) mc_address, mc_address_size) != 0){
         cout << ERROR_ACCEPT << endl;   
         return 1;
     }
 
 
-    //Handle Request
+    // Handle Request
     pthread_mutex_init(&mc_holding_mutex,NULL);
     mc_mutex_lock(&mc_holding_mutex);
 
     cout << "CONNECTED!!!" << endl;
     
-    //User Interaction
+    // User Interaction
     pthread_create(&mc_client_thread, NULL, mc_client_response, (void *) &mc_connection);
-    //Heart-beat
+    // Heart-beat
     pthread_create(&mc_heartbeat_thread, NULL, mc_heartbeat_response, (void *) &mc_connection);
 
-    //Finish
+    // Finish
     pthread_join(mc_client_thread, NULL);        
     return 0;
 }
 
+/*
+    Thread: User interaction
+    This thread handles the user input. And it sends then message to the server if it obtains the lock.
+
+    @param connection the socket file descriptor.
+*/
 void * mc_client_response(void * connection){
 
     while (true){
-        //Read the command
+        // Read the command
         string msg;
         getline(cin,msg);
 
-        //Wait for the gap and process the command
+        // Wait for the gap and process the command
         mc_mutex_lock(&mc_holding_mutex);
         if (msg == "CLOSE"){
             break;
@@ -101,14 +112,21 @@ void * mc_client_response(void * connection){
     exit(0);
 }
 
+/*
+    Thread: Heart-beat thread
+    This Thread responds to the server periodically. Therefore the program can switch between read-mode and write-mode.
+    This thread will unlock the mutex lock which allows user to send command to the server.
 
+    @param connection the socket file descriptor.
+*/
 void * mc_heartbeat_response(void * connection){
 
     cout << ">" << flush;
     while (true){
+        // Read from client
         string msg = mc_socket_read(*(int *)connection);
 
-        //RESPOND HEART BEATS
+        // Handle response
         if (msg.length() == 0){
             break;
         }else if (msg == "RUOK"){
@@ -119,7 +137,7 @@ void * mc_heartbeat_response(void * connection){
             mc_mutex_unlock(&mc_holding_mutex);
         }
 
-        //SET HOLDING        
+        // Respond if no others respond      
         if (mc_mutex_trylock(&mc_holding_mutex) == 0) {
             mc_socket_write(*(int *)connection, "IMOK");
         }
