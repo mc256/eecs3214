@@ -43,4 +43,4 @@ bool mc_mutex_trylock(pthread_mutex_t *mutex);
 void mc_check_null(void * object);
 
 int mc_create_server(in_addr_t ip_address, int port);
-int mc_connect_to_server(in_addr_t remote_ip_address, int port);
+int mc_connect_server(in_addr_t remote_ip_address, int port);

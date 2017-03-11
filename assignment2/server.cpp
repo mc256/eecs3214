@@ -29,7 +29,7 @@ int main(int argc, char ** argv) {
 
     int connection;
     if ((connection = mc_create_server(inet_addr(BIND_ADDR), BIND_PORT)) < 0){
-        cout << "FAILED!!! Cannot create server. Program exits.";
+        cout << "FAILED!!! Cannot create server. Program exits." << endl;
         return 1;
     }
 
@@ -260,8 +260,8 @@ void * mc_message_handler(void * current_client){
             mc_mutex_lock(&(mc_client->message_mutex));
             mc_client->message_buffer += mc_list_clients(false);
             mc_mutex_unlock(&(mc_client->message_mutex));
-        }else if (msg.substr(0,3) == "MSG"){
-            mc_spread_out_message(mc_client, msg.substr(3,msg.length() - 3));
+        }else if (msg.substr(0,9) == "BROADCAST"){
+            mc_spread_out_message(mc_client, msg.substr(10, string::npos));
             // Avoid read and write the buffer at the same time.
             mc_mutex_lock(&(mc_client->message_mutex));
             mc_client->message_buffer += "MESSAGE SENT\n";

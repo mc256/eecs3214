@@ -100,7 +100,7 @@ void mc_mutex_unlock(pthread_mutex_t *mutex){
     @return true if you successfully acquired the lock; false if you cannot lock it.
 */
 bool mc_mutex_trylock(pthread_mutex_t *mutex){
-    if (pthread_mutex_trylock(mutex)){
+    if (pthread_mutex_trylock(mutex) == 0){
         return true;
     }
     return false;
@@ -167,7 +167,7 @@ int mc_create_server(in_addr_t ip_address, int port){
     @param port is the port that the server is listening on.
     @return the socket. If not success, a value of -1 shall be returned.
 */
-int mc_connect_to_server(in_addr_t remote_ip_address, int port){
+int mc_connect_server(in_addr_t remote_ip_address, int port){
 
     // Configure the address
     socket_address * address = new socket_address;
