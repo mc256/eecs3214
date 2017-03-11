@@ -18,22 +18,25 @@ using namespace std;
 */
 int main(int argc, char ** argv) {
     // Get the Server-end IP address
-    cout << "========================================================" << endl;
-    cout << "            EECS3214 Assignment 2 Client" << endl;
-    cout << "--------------------------------------------------------" << endl;
+    cout << "===========================================================================" << endl;
+    cout << "                     EECS3214 Assignment 2 Client" << endl;
+    cout << "---------------------------------------------------------------------------" << endl;
     cout << " Usage: " << string(argv[0]) << " [directory_server_ip_address] [bind_port]" << endl;
     cout << " Command:" << endl;
     cout << "    JOIN               - display yourself on the LIST" << endl;
     cout << "    LEAVE              - hide yourself from the LIST" << endl;
     cout << "    LIST               - list all the users" << endl;
     cout << "    CLOSE              - close this program" << endl;
-    cout << "    BROADCAST message  - anything you want to send to all the other peers" << endl;
-    cout << "    CONNECT id         - The peer you want to connect (use LIST to fetch the list first)" << endl;
+    cout << "    BROADCAST message  - anything you want to send to all the other peers." << endl;
+    cout << "    CONNECT id         - Establish P2P connection." << endl;
+    cout << "                         You must use LIST command to fetch the list first." << endl;
+    cout << "                         The number of id is provided in the list." << endl;
+    cout << "    DISCONNECT         - Close the P2P connection." << endl;
     cout << "    message            - Sent message to the peer you have connected." << endl;
-    cout << "========================================================" << endl;
+    cout << "===========================================================================" << endl;
     cout << " I am hosting the directory server on my VPS." << endl;
     cout << " You can try 106.185.43.242." << endl;
-    cout << "========================================================" << endl;
+    cout << "===========================================================================" << endl;
 
     //Handle parameters and configurations
     in_addr_t remote_address = INADDR_NONE;
@@ -67,8 +70,7 @@ int main(int argc, char ** argv) {
     }
 
     //Create server for other peers    
-    int peer_connection;
-    if ( (peer_connection = mc_create_server(inet_addr(BIND_ADDR), mc_peer_port)) < 0){
+    if ( (mc_peer_connection = mc_create_server(inet_addr(BIND_ADDR), mc_peer_port)) < 0){
         cout << "FAILED!!! Cannot create server for other peers. Program exits." << endl;
         return 1;
     }
@@ -90,7 +92,7 @@ int main(int argc, char ** argv) {
     // Heart-beat
     pthread_create(&mc_heartbeat_thread, NULL, mc_heartbeat_response, (void *) &server_connection);
     // Peer connection
-    pthread_create(&mc_peer_passive_thread, NULL, mc_peer_passive_response, (void *) &peer_connection);
+    pthread_create(&mc_peer_passive_thread, NULL, mc_peer_passive_response, (void *) &mc_peer_connection);
     // User Interaction
     pthread_create(&mc_client_thread, NULL, mc_client_response, (void *) &server_connection);
 
@@ -133,6 +135,7 @@ void * mc_client_response(void * connection){
                 cout << "You have not connected to any other peers yet." << "\n>" << flush;
             }else{
                 mc_peer_mode = 0;
+                cout << "Closing..." << "\n>" << flush;
             }
         }else{
             if (mc_peer_mode == 0) {
@@ -140,11 +143,16 @@ void * mc_client_response(void * connection){
             }else{
                 mc_mutex_lock(&mc_peer_holding_mutex);
                 mc_socket_write(mc_peer_handler, "MSG " + msg);
+                cout << ">" << flush;
             }
         }            
         
     }
     close(*(int *)connection);
+    if (mc_mutex_trylock(&mc_p2p_mutex)){
+        close(mc_peer_handler);
+    }
+    close(mc_peer_connection);
     cout << "Bye!" << endl;
     exit(0);
 }
@@ -210,30 +218,37 @@ void * mc_peer_passive_response(void * connection){
             mc_peer_mode = -1;
             //Keep Reading
             while (true){
-                //TODO
+                //Heart-beat request
+                if (mc_mutex_trylock(&mc_peer_holding_mutex)){
+                    mc_socket_write(mc_peer_handler, "RUOK");
+                }
+
+                string msg = mc_socket_read(mc_peer_handler);
+
+                if (msg.length() == 0){
+                    break;
+                }else if (msg == "IMOK") {
+                    // DO NOTHING
+                }else if (msg.substr(0,3) == "MSG"){
+                    cout << "Message Received: " << msg.substr(4, string::npos) << "\n>" << flush;
+                }
+
+                mc_mutex_unlock(&mc_peer_holding_mutex);
+                
                 if (mc_peer_mode == 0){
                     break;
                 }
-                if (mc_mutex_trylock(&mc_peer_holding_mutex)){
-                    mc_socket_write(handler, "RUOK");
-                }
-                string msg = mc_socket_read(handler);
-                if (msg.length() == 0 || msg == "CLOSE"){
-                    break;
-                }else if (msg == "IMOK") {
-                    continue;
-                }else if (msg.substr(0,3) == "MSG"){
-                    cout << msg.substr(4, string::npos) << "\n>" << flush;
-                }
-                mc_mutex_unlock(&mc_peer_holding_mutex);
+                
+                usleep(INTERVAL);
             }
             mc_mutex_unlock(&mc_p2p_mutex); 
+            mc_mutex_unlock(&mc_peer_holding_mutex);
         }else{
             cout << ">ERROR!!! You cannot connect to yourself. Please try another peer." << "\n>" << flush;
         }
-        mc_socket_write(handler, "CLOSE");
-        close(handler);
+        close(mc_peer_handler);
         cout << "P2P connection closed. (S)" << "\n>" << flush;
+        mc_peer_mode = 0;
     }
 }
 
@@ -247,28 +262,29 @@ void * mc_peer_active_response(void * connection){
         }
 
         // Read from client
-        string msg = mc_socket_read(*(int *)connection);
+        string msg = mc_socket_read(mc_peer_handler);
 
         // Handle response
-        if (msg.length() == "CLOSE"){
-            cout << "Abort!" << endl;
+        if (msg.length() == 0){
             break;
         }else if (msg == "RUOK"){
             mc_mutex_unlock(&mc_peer_holding_mutex);
             usleep(INTERVAL);
         }else if (msg.substr(0,3) == "MSG"){
-            cout << msg.substr(4, string::npos) << "\n>" << flush;
+            cout << "Message Received: " << msg.substr(4, string::npos) << "\n>" << flush;
             mc_mutex_unlock(&mc_peer_holding_mutex);
         }
 
         // Respond if no others respond      
         if (mc_mutex_trylock(&mc_peer_holding_mutex)) {
-            mc_socket_write(*(int *)connection, "IMOK");
+            mc_socket_write(mc_peer_handler, "IMOK");
         }
     }
-    close(*(int *) connection);
+    close(mc_peer_handler);
     mc_mutex_unlock(&mc_p2p_mutex);
+    mc_mutex_unlock(&mc_peer_holding_mutex);
     cout << "P2P connection closed. (C)" << "\n>" << flush;
+    mc_peer_mode = 0;
 }
 
 void mc_update_peer_list(string data){

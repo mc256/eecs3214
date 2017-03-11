@@ -47,7 +47,7 @@ pthread_t mc_client_thread;
 pthread_t mc_heartbeat_thread;
 pthread_mutex_t mc_holding_mutex;
 
-
+int mc_peer_connection;
 int mc_peer_mode = 0;											//0 not use; 1 active; -1 passive;
 int mc_peer_port;
 int mc_peer_handler;
