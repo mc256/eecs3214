@@ -21,7 +21,7 @@ int main(int argc, char ** argv) {
     cout << "========================================================" << endl;
     cout << "            EECS3214 Assignment 2 Client" << endl;
     cout << "--------------------------------------------------------" << endl;
-    cout << " Usage: " << string(argv[0]) << " [ip_address]" << endl;
+    cout << " Usage: " << string(argv[0]) << " [directory_server_ip_address] [bind_port]" << endl;
     cout << " Command:" << endl;
     cout << "    JOIN               - display yourself on the LIST" << endl;
     cout << "    LEAVE              - hide yourself from the LIST" << endl;
@@ -31,54 +31,74 @@ int main(int argc, char ** argv) {
     cout << "    CONNECT id         - The peer you want to connect (use LIST to fetch the list first)" << endl;
     cout << "    message            - Sent message to the peer you have connected." << endl;
     cout << "========================================================" << endl;
-    cout << " I am hosting the server-end on my server." << endl;
+    cout << " I am hosting the directory server on my VPS." << endl;
     cout << " You can try 106.185.43.242." << endl;
     cout << "========================================================" << endl;
-    in_addr_t bind_address = INADDR_NONE;
-    if (argc == 2) {
-        bind_address = inet_addr(argv[1]);
+
+    //Handle parameters and configurations
+    in_addr_t remote_address = INADDR_NONE;
+    if (argc >= 2) {
+        remote_address = inet_addr(argv[1]);
     }
-    while (bind_address == INADDR_NONE) {
-        cout << "Please enter a valid IP address:" << flush;   
-        string bind_address_string;
-        getline(cin, bind_address_string);
-        bind_address = inet_addr(bind_address_string.c_str());
+    while (remote_address == INADDR_NONE) {
+        cout << "Please enter a valid directory server IP address:" << flush;   
+        string input_string;
+        getline(cin, input_string);
+        remote_address = inet_addr(input_string.c_str());
+    }
+    
+    mc_peer_port = 0;
+    if (argc >= 3) {
+        mc_peer_port = atoi(argv[2]);
+    }
+    while (mc_peer_port == 0) {
+        cout << "Please enter a valid port number for the listening port:" << flush;   
+        string input_string;
+        getline(cin, input_string);
+        mc_peer_port = atoi(input_string.c_str());        
     }
 
-    // Configure the address
-    socket_address * mc_address = new socket_address;
-    mc_check_null(&mc_address);
-    mc_address->sin_family = AF_INET;
-    mc_address->sin_addr.s_addr = bind_address;
-    mc_address->sin_port = htons(PORT_NUMBER);
-    socklen_t mc_address_size = sizeof(* mc_address);
 
-
-    // Create socket
-    int mc_connection;
-    if ( (mc_connection = socket(AF_INET, SOCK_STREAM, 0)) < 0){
-        cout << ERROR_SOCKET << endl;
+    //Connect to directory server 
+    int server_connection;
+    if ( (server_connection = mc_connect_to_server(remote_address, BIND_PORT)) < 0){
+        cout << "FAILED!!! Cannot connect to directory server. Program exits.";
         return 1;
     }
 
-
-    // Connect
-    if ( connect(mc_connection, (socket_address_system *) mc_address, mc_address_size) != 0){
-        cout << ERROR_ACCEPT << endl;   
+    //Create server for other peers    
+    int peer_connection;
+    if ((peer_connection = mc_create_server(inet_addr(BIND_ADDR), mc_peer_port)) < 0){
+        cout << "FAILED!!! Cannot create server for other peers. Program exits.";
         return 1;
     }
 
+    //Peer List
+    mc_peer_list = new peer_structure;
+    mc_peer_list->id = 0;
+    mc_peer_list->next = NULL;
 
     // Handle Request
     pthread_mutex_init(&mc_holding_mutex,NULL);
     mc_mutex_lock(&mc_holding_mutex);
 
     cout << "CONNECTED!!!" << endl;
-    
+    cout << "LISTENING ON PORT: " << mc_peer_port << endl;
+
     // User Interaction
-    pthread_create(&mc_client_thread, NULL, mc_client_response, (void *) &mc_connection);
+    pthread_create(&mc_client_thread, NULL, mc_client_response, (void *) &server_connection);
     // Heart-beat
-    pthread_create(&mc_heartbeat_thread, NULL, mc_heartbeat_response, (void *) &mc_connection);
+    pthread_create(&mc_heartbeat_thread, NULL, mc_heartbeat_response, (void *) &server_connection);
+
+
+
+
+    /*
+    =======================================
+     Prepare peer-to-peer connection
+    =======================================
+    */
+
 
     // Finish
     pthread_join(mc_client_thread, NULL);        
@@ -103,8 +123,9 @@ void * mc_client_response(void * connection){
         if (msg == "CLOSE"){
             break;
         }else if (msg == "JOIN"){
-            //TODO: Should send the server the listening port.
-            mc_socket_write(*(int *)connection, msg);            
+            ostringstream buffer;
+            buffer << "JOIN" << mc_peer_port;
+            mc_socket_write(*(int *)connection, buffer.str());            
         }else if (msg == "LEAVE" || msg == "LIST"){
             mc_socket_write(*(int *)connection, msg);
         }else{
@@ -137,6 +158,11 @@ void * mc_heartbeat_response(void * connection){
         }else if (msg == "RUOK"){
             mc_mutex_unlock(&mc_holding_mutex);
             usleep(INTERVAL);
+        }else if (msg.substr(0,5) == "LIST\n"){
+            //TODO: handle the list
+            mc_update_peer_list(msg);
+            cout << msg << ">" << flush;
+            mc_mutex_unlock(&mc_holding_mutex);
         }else{
             cout << msg << ">" << flush;
             mc_mutex_unlock(&mc_holding_mutex);
@@ -151,4 +177,26 @@ void * mc_heartbeat_response(void * connection){
     close(*(int *)connection);
     cout << ERROR_LOSTCNT << endl;
     exit(0);
+}
+
+
+void * mc_update_peer_list(string data){
+    stringstream buffer;
+    buffer << data;
+    peer_structure * pointer = mc_peer_list;
+    string msg;
+    while (getline(buffer, msg, '\n')){
+        int id,port; 
+        char address[15];
+
+        if (sscanf(msg.c_str(),"[%d] %15[0-9.]: %*d << %d", &id, address, &port) == 3){
+            peer_structure * peer = new peer_structure;
+            mc_check_null(peer);
+            pointer->next = peer;
+            pointer = pointer->next;
+            pointer->id = id;
+            pointer->ip_address = inet_addr(address);
+            pointer->port = port;
+        }
+    }
 }

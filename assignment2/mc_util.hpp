@@ -20,6 +20,11 @@
 
 #define BUFFER_SIZE 1024
 
+#define ERROR_SOCKET "socket error"
+#define ERROR_BIND "cannot bind to address"
+#define ERROR_LISTEN "listen error"
+#define ERROR_ACCEPT "cannot establish connection"
+#define ERROR_SERVER "cannot handle connection"
 #define ERROR_THREAD "unable to handle a thread lock"
 #define ERROR_MEMORY "not enough memory"
 
@@ -36,3 +41,6 @@ void mc_mutex_unlock(pthread_mutex_t *mutex);
 bool mc_mutex_trylock(pthread_mutex_t *mutex);
 
 void mc_check_null(void * object);
+
+int mc_create_server(in_addr_t ip_address, int port);
+int mc_connect_to_server(in_addr_t remote_ip_address, int port);

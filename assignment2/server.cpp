@@ -27,30 +27,9 @@ int main(int argc, char ** argv) {
     cout << "    message - anything you want to send" << endl;
     cout << "===============================================" << endl;
 
-    // Configure the address
-    socket_address * mc_address = new socket_address;
-    mc_check_null(&mc_address);
-    mc_address->sin_family = AF_INET;                            // IPv4 is OK
-    mc_address->sin_addr.s_addr = inet_addr(BIND_ADDR);          // Address
-    mc_address->sin_port = htons(BIND_PORT);                     // Port
-    socklen_t mc_address_size = sizeof(* mc_address);            // size of the listen address information
-
-    // Create socket
-    int mc_connection;
-    if ( (mc_connection = socket(AF_INET, SOCK_STREAM, 0)) < 0){
-        cout << ERROR_SOCKET << endl;
-        return 1;
-    }
-
-    // Bind to address
-    if ( bind(mc_connection, (socket_address_system *) mc_address, mc_address_size) ){
-        cout << ERROR_BIND << endl;   
-        return 1;
-    }
-
-    // Listen
-    if ( listen(mc_connection, 0)  ){                           //A backlog argument of 0 may allow the socket to accept connections
-        cout << ERROR_LISTEN << endl;
+    int connection;
+    if ((connection = mc_create_server(inet_addr(BIND_ADDR), BIND_PORT)) < 0){
+        cout << "FAILED!!! Cannot create server. Program exits.";
         return 1;
     }
 
@@ -64,8 +43,8 @@ int main(int argc, char ** argv) {
 
     // Server-end Menu
     cout << "OK!!! Server is ready." << endl;
-    pthread_create(&mc_server_menu_thread, NULL, mc_server_menu, (void *) &mc_connection);
-    pthread_create(&mc_listener_thread, NULL, mc_listener, (void *) &mc_connection);
+    pthread_create(&mc_server_menu_thread, NULL, mc_server_menu, (void *) &connection);
+    pthread_create(&mc_listener_thread, NULL, mc_listener, (void *) &connection);
 
     pthread_join(mc_server_menu_thread, NULL);
 
@@ -210,17 +189,21 @@ string mc_list_clients(bool show_inactive){
     ostringstream buffer;
     int i = 0;
     client_structure * pointer = mc_user_list;
+    buffer << "LIST" << endl;
     while (pointer->next != NULL) {
         pointer = pointer->next;
         if (show_inactive || pointer->active){
             buffer << "[" << ++i << "] "<< mc_socket_address_to_string(pointer->address);
-                if (show_inactive) {
-                    buffer << " " << (pointer->active ? "ACTIVE" : "INACTIVE" );
-                }
+            if (show_inactive) {
+                buffer << " " << (pointer->active ? "ACTIVE" : "INACTIVE" );
+            }
+            if (pointer->active){
+                buffer << " << "<< pointer->listening_port;
+            }
             buffer << endl;
         }
     }
-    buffer << i << " user(s) on-line." << endl;
+    buffer << i << " on-line user(s)." << endl;
     return buffer.str();
 }
 
@@ -258,11 +241,13 @@ void * mc_message_handler(void * current_client){
             break;
         }else if (msg == "IMOK"){
             continue;
-        }else if (msg == "JOIN"){
+        }else if (msg.substr(0,4) == "JOIN"){
             mc_client->active = true;
             // Avoid read and write the buffer at the same time.
             mc_mutex_lock(&(mc_client->message_mutex));
-            mc_client->message_buffer += "JOINED FROM " + mc_socket_address_to_string(mc_client->address) + "\n";
+            string port_number_str = msg.substr(4,string::npos);
+            mc_client->listening_port = atoi(port_number_str.c_str());
+            mc_client->message_buffer += "JOINED FROM " + mc_socket_address_to_string(mc_client->address) + " LISTENING ON PORT " + port_number_str + "\n";
             mc_mutex_unlock(&(mc_client->message_mutex));
         }else if (msg == "LEAVE"){
             mc_client->active = false;

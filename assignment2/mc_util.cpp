@@ -110,11 +110,85 @@ bool mc_mutex_trylock(pthread_mutex_t *mutex){
 /*
     Check a object if it is successfully created. If it is null, exit the program.
 
-    @param an object
+    @param object is an object
 */
 void mc_check_null(void * object){
     if (object == NULL){
         cout << ERROR_MEMORY << endl;
         exit(1);
     }
+}
+
+
+
+/*
+    Create a server. And return the socket.
+
+    @param ip_address is the IP address you want to bind.
+    @param port is the port that the server is listening on.
+    @return the socket. If not success, a value of -1 shall be returned.
+*/
+int mc_create_server(in_addr_t ip_address, int port){
+    // Configure the address
+    socket_address * address = new socket_address;
+    mc_check_null(&address);
+    address->sin_family = AF_INET;                            // IPv4 is OK
+    address->sin_addr.s_addr = ip_address;          // Address
+    address->sin_port = htons(port);                          // Port
+    socklen_t address_size = sizeof(* address);            // size of the listen address information
+
+    // Create socket
+    int connection;
+    if ( (connection = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+        cout << ERROR_SOCKET << endl;
+        return -1;
+    }
+
+    // Bind to address
+    if ( bind(connection, (socket_address_system *) address, address_size) ){
+        cout << ERROR_BIND << endl;   
+        return -1;
+    }
+
+    // Listen
+    if ( listen(connection, 0)  ){                           //A backlog argument of 0 may allow the socket to accept connections
+        cout << ERROR_LISTEN << endl;
+        return -1;
+    }
+
+    return connection;
+}
+
+
+/*
+    Connect to a remote server
+
+    @param remote_ip_address is the IP address for the remote server.
+    @param port is the port that the server is listening on.
+    @return the socket. If not success, a value of -1 shall be returned.
+*/
+int mc_connect_to_server(in_addr_t remote_ip_address, int port){
+
+    // Configure the address
+    socket_address * address = new socket_address;
+    mc_check_null(&address);
+    address->sin_family = AF_INET;
+    address->sin_addr.s_addr = remote_ip_address;
+    address->sin_port = htons(port);
+    socklen_t address_size = sizeof(* address);
+
+    // Create socket
+    int connection;
+    if ( (connection = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+        cout << ERROR_SOCKET << endl;
+        return -1;
+    }
+
+    // Connect
+    if ( connect(connection, (socket_address_system *) address, address_size) != 0){
+        cout << ERROR_ACCEPT << endl;   
+        return -1;
+    }
+
+    return connection;
 }

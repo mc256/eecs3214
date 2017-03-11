@@ -26,9 +26,6 @@
 #define BIND_ADDR "0.0.0.0"
 #define SHUTDOWN_TIMEOUT 1
 
-#define ERROR_SOCKET "socket error"
-#define ERROR_BIND "cannot bind to address"
-#define ERROR_LISTEN "listen error"
 #define ERROR_ACCEPT "cannot establish connection"
 #define ERROR_SERVER "cannot handle connection"
 
@@ -45,7 +42,7 @@ typedef struct client_structure
     bool active;
     std::string message_buffer;
     pthread_mutex_t message_mutex;
-    //TODO: Save the listening port
+    int listening_port;
 } client_structure;
 
 
