@@ -17,7 +17,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
-
+//CONSTANT
 #define BUFFER_SIZE 1024
 
 #define ERROR_SOCKET "socket error"
@@ -28,9 +28,11 @@
 #define ERROR_THREAD "unable to handle a thread lock"
 #define ERROR_MEMORY "not enough memory"
 
+//STRUCTURE
 typedef struct sockaddr_in socket_address;                      // Easy for construct
 typedef struct sockaddr socket_address_system;                  // For system use
 
+//PROCEDURE
 std::string mc_socket_read(int handler);
 void mc_socket_write(int handler, std::string content);
 void mc_zerofill_buffer(char * buffer);

@@ -58,7 +58,7 @@ pthread_mutex_t mc_peer_holding_mutex;
 
 peer_structure * mc_peer_list;
 
-//METHOD
+//PROCEDURES
 int main(int argc, char ** argv);
 void * mc_client_response(void * connection);
 void * mc_heartbeat_response(void * connection);

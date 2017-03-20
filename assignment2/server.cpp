@@ -11,7 +11,7 @@
 using namespace std;
 
 /*
-    Main method
+    Main procedure
 
     @param argc number of the arguments.
     @param argv the arguments.
@@ -260,7 +260,7 @@ void * mc_message_handler(void * current_client){
             mc_mutex_lock(&(mc_client->message_mutex));
             mc_client->message_buffer += mc_list_clients(false);
             mc_mutex_unlock(&(mc_client->message_mutex));
-        }else if (msg.substr(0,9) == "BROADCAST"){
+        }else if (msg.substr(0,10) == "BROADCAST "){
             mc_spread_out_message(mc_client, msg.substr(10, string::npos));
             // Avoid read and write the buffer at the same time.
             mc_mutex_lock(&(mc_client->message_mutex));

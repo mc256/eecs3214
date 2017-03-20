@@ -122,7 +122,7 @@ void mc_check_null(void * object){
 
 
 /*
-    Create a server. And return the socket.
+    Create a server. And return the socket descriptor.
 
     @param ip_address is the IP address you want to bind.
     @param port is the port that the server is listening on.
@@ -161,7 +161,7 @@ int mc_create_server(in_addr_t ip_address, int port){
 
 
 /*
-    Connect to a remote server
+    Connect to a remote server and return the connection descriptor.
 
     @param remote_ip_address is the IP address for the remote server.
     @param port is the port that the server is listening on.

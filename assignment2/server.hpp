@@ -53,7 +53,7 @@ client_structure * mc_user_list;
 pthread_mutex_t mc_user_list_mutex;
 
 
-//METHOD
+//PROCEDURE
 int main(int argc, char ** argv);
 
 void * mc_listener(void * connection);

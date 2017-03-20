@@ -11,7 +11,7 @@
 using namespace std;
 
 /*
-    Main method.
+    Main procedure.
 
     @param argc number of the arguments.
     @param argv the arguments.
@@ -127,19 +127,19 @@ void * mc_client_response(void * connection){
         }else if (msg == "LEAVE" || msg == "LIST"){
             mc_mutex_lock(&mc_holding_mutex);
             mc_socket_write(*(int *)connection, msg);
-        }else if (msg.substr(0,9) == "BROADCAST"){
+        }else if (msg.substr(0,10) == "BROADCAST "){
             mc_mutex_lock(&mc_holding_mutex);
             mc_socket_write(*(int *)connection, msg);
         }else if (msg == "DISCONNECT"){
             if (mc_peer_mode == 0) {
-                cout << "You have not connected to any other peers yet." << "\n>" << flush;
+                cout << "You did not establish P2P connection." << "\n>" << flush;
             }else{
                 mc_peer_mode = 0;
                 cout << "Closing..." << "\n>" << flush;
             }
         }else{
             if (mc_peer_mode == 0) {
-                cout << "You have not connected to any other peers yet." << "\n>" << flush;
+                cout << "You did not establish P2P connection." << "\n>" << flush;
             }else{
                 mc_mutex_lock(&mc_peer_holding_mutex);
                 mc_socket_write(mc_peer_handler, "MSG " + msg);
@@ -198,7 +198,13 @@ void * mc_heartbeat_response(void * connection){
     exit(0);
 }
 
+/*
+    Thread: P2P server thread
+    This procedure waits for the new connection coming from the other peers.
+    If it accept the connection from the peer, it will check the peer periodically.
 
+    @param connection the socket file descriptor.
+*/
 void * mc_peer_passive_response(void * connection){
 
     while (true) {
@@ -230,7 +236,7 @@ void * mc_peer_passive_response(void * connection){
                 }else if (msg == "IMOK") {
                     // DO NOTHING
                 }else if (msg.substr(0,3) == "MSG"){
-                    cout << "Message Received: " << msg.substr(4, string::npos) << "\n>" << flush;
+                    cout << "P2P Message: " << msg.substr(4, string::npos) << "\n>" << flush;
                 }
 
                 mc_mutex_unlock(&mc_peer_holding_mutex);
@@ -253,6 +259,12 @@ void * mc_peer_passive_response(void * connection){
 }
 
 
+/*
+    Thread: P2P client thread
+    This procedure initiative creates the connection to another peer. 
+
+    @param connection the socket file descriptor.
+*/
 void * mc_peer_active_response(void * connection){
     cout << ">" << flush;
     while (true){
@@ -271,7 +283,7 @@ void * mc_peer_active_response(void * connection){
             mc_mutex_unlock(&mc_peer_holding_mutex);
             usleep(INTERVAL);
         }else if (msg.substr(0,3) == "MSG"){
-            cout << "Message Received: " << msg.substr(4, string::npos) << "\n>" << flush;
+            cout << "P2P Message: " << msg.substr(4, string::npos) << "\n>" << flush;
             mc_mutex_unlock(&mc_peer_holding_mutex);
         }
 
@@ -287,6 +299,13 @@ void * mc_peer_active_response(void * connection){
     mc_peer_mode = 0;
 }
 
+
+/*
+    Update the list of all the peers.
+    This procedure handles the result from the LIST command.
+
+    @param data the respond data that starts with the "LIST" identifier.
+*/
 void mc_update_peer_list(string data){
     stringstream buffer;
     buffer << data;
@@ -309,6 +328,15 @@ void mc_update_peer_list(string data){
     }
 }
 
+
+/*
+    Establish P2P connection
+    This procedure tries to connect to specific peer by looking the peer list store in the program.
+    Once the connection has been established, this procedure will pass the connection descriptor to 
+    the mc_peer_active_response() thread.
+
+    @param data the respond data that starts with the "LIST" identifier.
+*/
 void mc_connect_peer(int id){
     // id > 0
     if (mc_mutex_trylock(&mc_p2p_mutex)){
@@ -343,7 +371,7 @@ void mc_connect_peer(int id){
         cout << "Cannot find the peer with ID-" << id << ". Please try again." << "\n>" << flush;
         mc_mutex_unlock(&mc_p2p_mutex);
     }else{
-        cout << "You have already connected with other peer." << "\n>" << flush;
+        cout << "You have already established P2P connection." << "\n>" << flush;
     }
 
 }
